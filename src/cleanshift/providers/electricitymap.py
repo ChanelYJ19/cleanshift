@@ -7,6 +7,11 @@ from .base import GridIntensityProvider, IntensityPoint
 _BASE = "https://api.electricitymap.org/v3"
 
 
+def _parse_iso(s: str) -> datetime:
+    # datetime.fromisoformat() only accepts 'Z' in Python 3.11+
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
 class ElectricityMapProvider(GridIntensityProvider):
     """ElectricityMap API v3 provider.
 
@@ -42,7 +47,7 @@ class ElectricityMapProvider(GridIntensityProvider):
             resp.raise_for_status()
             data = resp.json()
 
-        ts = datetime.fromisoformat(data["datetime"]).astimezone(timezone.utc)
+        ts = _parse_iso(data["datetime"])
         return IntensityPoint(
             timestamp=ts,
             intensity_gco2_per_kwh=float(data["carbonIntensity"]),
@@ -60,7 +65,7 @@ class ElectricityMapProvider(GridIntensityProvider):
 
         points: list[IntensityPoint] = []
         for entry in data.get("forecast", []):
-            ts = datetime.fromisoformat(entry["datetime"]).astimezone(timezone.utc)
+            ts = _parse_iso(entry["datetime"])
             if from_dt <= ts <= to_dt:
                 points.append(
                     IntensityPoint(

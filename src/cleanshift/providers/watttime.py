@@ -5,6 +5,11 @@ import httpx
 from .base import GridIntensityProvider, IntensityPoint
 
 _BASE = "https://api.watttime.org/v3"
+
+
+def _parse_iso(s: str) -> datetime:
+    # datetime.fromisoformat() only accepts 'Z' in Python 3.11+
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
 # WattTime reports CO₂ MOER in lbs CO₂/MWh; convert to gCO₂/kWh
 _LBS_MWH_TO_G_KWH = 453.592 / 1000.0
 
@@ -57,7 +62,7 @@ class WattTimeProvider(GridIntensityProvider):
             data = resp.json()
 
         entry = data["data"][0]
-        ts = datetime.fromisoformat(entry["point_time"]).astimezone(timezone.utc)
+        ts = _parse_iso(entry["point_time"])
         return IntensityPoint(
             timestamp=ts,
             intensity_gco2_per_kwh=float(entry["value"]) * _LBS_MWH_TO_G_KWH,
@@ -81,7 +86,7 @@ class WattTimeProvider(GridIntensityProvider):
 
         points: list[IntensityPoint] = []
         for entry in data.get("data", []):
-            ts = datetime.fromisoformat(entry["point_time"]).astimezone(timezone.utc)
+            ts = _parse_iso(entry["point_time"])
             if from_dt <= ts <= to_dt:
                 points.append(
                     IntensityPoint(
